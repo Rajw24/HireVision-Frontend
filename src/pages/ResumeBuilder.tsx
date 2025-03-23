@@ -560,7 +560,7 @@ function App() {
                       '#f0f4ff',
                       '#ff6b4a',
                       '#0f172a',
-                      '#ffffff',
+                      '#ffd4e7',
                       '#ff4800'
                     ].map((color) => (
                       <div
