@@ -1,13 +1,102 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Settings, Sun, Mic, ChevronDown, ArrowLeft, RotateCcw, Copy, Video, VideoOff, Volume2, VolumeX, Send, X } from 'lucide-react';
+import { Settings, Sun, Mic, ChevronDown, ArrowLeft, Copy, Video, VideoOff, Volume2, VolumeX, Send, BarChart2 } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Line, Radar, Doughnut } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  RadialLinearScale,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+} from 'chart.js';
+import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
 
-// Mock interview questions
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  RadialLinearScale,
+  ArcElement,
+  Title,
+  Tooltip,
+  Legend,
+  Filler
+);
+
+const styles = StyleSheet.create({
+  page: {
+    flexDirection: 'row',
+    backgroundColor: '#fff',
+    padding: 20
+  },
+  section: {
+    margin: 10,
+    padding: 10,
+    flexGrow: 1
+  },
+  title: {
+    fontSize: 24,
+    marginBottom: 20,
+    textAlign: 'center'
+  },
+  subtitle: {
+    fontSize: 18,
+    marginBottom: 10
+  },
+  text: {
+    fontSize: 12,
+    marginBottom: 5
+  },
+  score: {
+    fontSize: 36,
+    textAlign: 'center',
+    marginBottom: 20,
+    color: '#024aad'
+  }
+});
+
+const ReportPDF = ({ metrics }) => (
+  <Document>
+    <Page size="A4" orientation="landscape" style={styles.page}>
+      <View style={styles.section}>
+        <Text style={styles.title}>Interview Analysis Report</Text>
+        <Text style={styles.score}>{metrics.overallScore}%</Text>
+        <Text style={styles.subtitle}>Performance Metrics</Text>
+        {Object.entries(metrics).map(([key, value]) => (
+          key !== 'overallScore' && (
+            <Text key={key} style={styles.text}>
+              {key.replace(/([A-Z])/g, ' $1').trim()}: {value}%
+            </Text>
+          )
+        ))}
+        <Text style={styles.subtitle}>Key Insights</Text>
+        <Text style={styles.text}>• Strong technical knowledge demonstrated</Text>
+        <Text style={styles.text}>• Clear communication style with good examples</Text>
+        <Text style={styles.text}>• Excellent problem-solving approach</Text>
+        <Text style={styles.text}>• Maintained professional composure</Text>
+      </View>
+    </Page>
+  </Document>
+);
+
 const interviewQuestions = [
   "Can you tell me about a challenging project you worked on and how you handled it?",
   "How do you handle conflicts in a team environment?",
   "What's your approach to learning new technologies?",
   "Describe a situation where you had to meet a tight deadline.",
-  "How do you ensure code quality in your projects?"
+  "How do you ensure code quality in your projects?",
+  "Tell me about a time you had to deal with a difficult coworker.",
+  "What's your experience with agile methodologies?",
+  "How do you handle technical debt in your projects?",
+  "Describe your debugging process.",
+  "What's your approach to writing maintainable code?"
 ];
 
 interface Message {
@@ -17,11 +106,12 @@ interface Message {
   timestamp: string;
 }
 
-interface SettingsConfig {
-  verbosity: 'concise' | 'default' | 'lengthy';
-  temperature: 'low' | 'default' | 'high';
-  performance: 'speed' | 'quality';
-  mode: 'default' | 'star' | 'soar';
+interface PerformanceMetrics {
+  technicalAccuracy: number;
+  communicationClarity: number;
+  problemSolving: number;
+  confidence: number;
+  overallScore: number;
 }
 
 function MockInterview() {
@@ -29,90 +119,59 @@ function MockInterview() {
   const [isTranscribing, setIsTranscribing] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOn, setIsVideoOn] = useState(true);
-  const [isAutoScroll, setIsAutoScroll] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [transcription, setTranscription] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [userInput, setUserInput] = useState('');
-  const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState<SettingsConfig>({
-    verbosity: 'default',
-    temperature: 'default',
-    performance: 'quality',
-    mode: 'default'
+  const [showAnalysis, setShowAnalysis] = useState(false);
+  const [performanceMetrics, setPerformanceMetrics] = useState<PerformanceMetrics>({
+    technicalAccuracy: 85,
+    communicationClarity: 78,
+    problemSolving: 92,
+    confidence: 88,
+    overallScore: 86
   });
-  const [performanceMetrics, setPerformanceMetrics] = useState({
-    accuracy: 85,
-    fluency: 78,
-    rhythm: 92
-  });
-  const [sessionId, setSessionId] = useState<string | null>(null);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const transcriptRef = useRef<HTMLDivElement>(null);
   const chatRef = useRef<HTMLDivElement>(null);
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   const recognitionRef = useRef<any>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    // Initialize time with Indian Standard Time
-    const updateTime = () => {
-      const now = new Date();
-      const options: Intl.DateTimeFormatOptions = {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Kolkata'
-      };
-      setTime(now.toLocaleTimeString('en-US', options));
-    };
+    let startTime = Date.now();
+    const timer = setInterval(() => {
+      const elapsedTime = Date.now() - startTime;
+      const minutes = Math.floor(elapsedTime / 60000);
+      const seconds = Math.floor((elapsedTime % 60000) / 1000);
+      setTime(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
+    }, 1000);
 
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
     return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
-    // Initialize speech synthesis with improved settings
     speechSynthesisRef.current = new SpeechSynthesisUtterance();
     speechSynthesisRef.current.rate = 1;
     speechSynthesisRef.current.pitch = 1;
     speechSynthesisRef.current.volume = 1;
     
-    // Initialize speech recognition with enhanced accuracy
     if ('webkitSpeechRecognition' in window) {
       recognitionRef.current = new (window as any).webkitSpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
-      recognitionRef.current.lang = 'en-US';
       
       recognitionRef.current.onresult = (event: any) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
-
-        for (let i = event.resultIndex; i < event.results.length; i++) {
-          const transcript = event.results[i][0].transcript;
-          if (event.results[i].isFinal) {
-            finalTranscript += transcript;
-          } else {
-            interimTranscript += transcript;
-          }
-        }
-
-        setTranscription(finalTranscript || interimTranscript);
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0].transcript)
+          .join('');
+        setTranscription(transcript);
       };
     }
 
-    // Initialize camera
-    initializeCamera();
-
-    // Add first question to messages
-    startInterview();
+    addMessage('ai', interviewQuestions[0]);
+    speakQuestion(interviewQuestions[0]);
 
     return () => {
-      stopMediaStream();
       if (speechSynthesisRef.current) {
         window.speechSynthesis.cancel();
       }
@@ -122,51 +181,11 @@ function MockInterview() {
     };
   }, []);
 
-  const initializeCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: true,
-        audio: true
-      });
-      mediaStreamRef.current = stream;
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-      }
-    } catch (error) {
-      console.error('Error accessing media devices:', error);
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
-  };
-
-  const stopMediaStream = () => {
-    if (mediaStreamRef.current) {
-      mediaStreamRef.current.getTracks().forEach(track => track.stop());
-    }
-  };
-
-  const toggleCamera = () => {
-    setIsVideoOn(prev => !prev);
-    if (mediaStreamRef.current) {
-      const videoTrack = mediaStreamRef.current.getVideoTracks()[0];
-      if (videoTrack) {
-        videoTrack.enabled = !isVideoOn;
-      }
-    }
-  };
-
-  const toggleMicrophone = () => {
-    setIsRecording(prev => !prev);
-    if (mediaStreamRef.current) {
-      const audioTrack = mediaStreamRef.current.getAudioTracks()[0];
-      if (audioTrack) {
-        audioTrack.enabled = !isRecording;
-      }
-    }
-    if (!isRecording) {
-      recognitionRef.current?.start();
-    } else {
-      recognitionRef.current?.stop();
-    }
-  };
+  }, [messages]);
 
   const speakQuestion = (text: string) => {
     if (speechSynthesisRef.current && !isMuted) {
@@ -181,6 +200,8 @@ function MockInterview() {
       setCurrentQuestionIndex(nextIndex);
       addMessage('ai', interviewQuestions[nextIndex]);
       speakQuestion(interviewQuestions[nextIndex]);
+    } else {
+      setShowAnalysis(true);
     }
   };
 
@@ -189,72 +210,21 @@ function MockInterview() {
       id: Date.now().toString(),
       type,
       text,
-      timestamp: new Date().toLocaleTimeString('en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-        timeZone: 'Asia/Kolkata'
-      })
+      timestamp: new Date().toLocaleTimeString()
     };
     setMessages(prev => [...prev, newMessage]);
   };
 
-  const startInterview = async () => {
-    try {
-      const response = await fetch('http://localhost:8000/api/interview/start/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          position: 'software_engineer',
-          difficulty: 'medium',
-        }),
-      });
-      const data = await response.json();
-      setSessionId(data.session_id);
-      addMessage('ai', data.question);
-      speakQuestion(data.question);
-    } catch (error) {
-      console.error('Error starting interview:', error);
-    }
-  };
-
-  const handleSendMessage = async () => {
-    if (userInput.trim() && sessionId) {
+  const handleSendMessage = () => {
+    if (userInput.trim()) {
       addMessage('user', userInput);
-      try {
-        const response = await fetch(`http://localhost:8000/api/interview/${sessionId}/respond/`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            answer: userInput,
-          }),
-        });
-        const data = await response.json();
-        if (data.question) {
-          addMessage('ai', data.question);
-          speakQuestion(data.question);
-        }
-        if (data.is_complete) {
-          setPerformanceMetrics({
-            accuracy: data.score.accuracy || 85,
-            fluency: data.score.fluency || 78,
-            rhythm: data.score.rhythm || 92,
-          });
-        }
-      } catch (error) {
-        console.error('Error sending response:', error);
-      }
       setUserInput('');
+      handleNextQuestion();
     }
   };
 
   const handleLeave = () => {
     if (window.confirm('Are you sure you want to leave the interview?')) {
-      stopMediaStream();
       window.speechSynthesis.cancel();
       if (recognitionRef.current) {
         recognitionRef.current.stop();
@@ -265,120 +235,194 @@ function MockInterview() {
     }
   };
 
+  const toggleRecording = () => {
+    setIsRecording(!isRecording);
+    if (!isRecording) {
+      recognitionRef.current?.start();
+    } else {
+      recognitionRef.current?.stop();
+    }
+  };
+
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setUserInput(text);
   };
 
-  const SettingsModal = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-[#2C2C2E] rounded-lg p-6 w-[480px] max-w-full">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold">Settings</h2>
-          <button onClick={() => setShowSettings(false)} className="text-gray-400 hover:text-white">
-            <X size={24} />
-          </button>
-        </div>
+  if (showAnalysis) {
+    const radarData = {
+      labels: ['Technical Accuracy', 'Communication', 'Problem Solving', 'Confidence'],
+      datasets: [{
+        label: 'Performance',
+        data: [
+          performanceMetrics.technicalAccuracy,
+          performanceMetrics.communicationClarity,
+          performanceMetrics.problemSolving,
+          performanceMetrics.confidence
+        ],
+        backgroundColor: 'rgba(2, 74, 173, 0.2)',
+        borderColor: '#024aad',
+        borderWidth: 2,
+        fill: true
+      }]
+    };
 
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg mb-2">Verbosity</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {['concise', 'default', 'lengthy'].map((option) => (
-                <button
-                  key={option}
-                  className={`p-2 rounded ${
-                    settings.verbosity === option
-                      ? 'bg-[#024aad] text-white'
-                      : 'bg-[#3C3C3E] text-gray-300 hover:bg-[#4C4C4E]'
-                  }`}
-                  onClick={() => setSettings(prev => ({ ...prev, verbosity: option as any }))}
-                >
-                  {option.charAt(0).toUpperCase() + option.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
+    const doughnutData = {
+      labels: ['Technical', 'Communication', 'Problem Solving', 'Confidence'],
+      datasets: [{
+        data: [
+          performanceMetrics.technicalAccuracy,
+          performanceMetrics.communicationClarity,
+          performanceMetrics.problemSolving,
+          performanceMetrics.confidence
+        ],
+        backgroundColor: [
+          '#024aad',
+          '#41b0f8',
+          '#0066cc',
+          '#003366'
+        ]
+      }]
+    };
 
-          <div>
-            <h3 className="text-lg mb-2">Copilot Temperature</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {['low', 'default', 'high'].map((option) => (
-                <button
-                  key={option}
-                  className={`p-2 rounded ${
-                    settings.temperature === option
-                      ? 'bg-[#024aad] text-white'
-                      : 'bg-[#3C3C3E] text-gray-300 hover:bg-[#4C4C4E]'
-                  }`}
-                  onClick={() => setSettings(prev => ({ ...prev, temperature: option as any }))}
-                >
-                  {option.charAt(0).toUpperCase() + option.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
+    const progressData = {
+      labels: ['Q1', 'Q2', 'Q3', 'Q4', 'Q5', 'Q6', 'Q7', 'Q8', 'Q9', 'Q10'],
+      datasets: [{
+        label: 'Performance Progress',
+        data: [75, 82, 88, 85, 90, 87, 92, 88, 94, 86],
+        borderColor: '#024aad',
+        tension: 0.4
+      }]
+    };
 
-          <div>
-            <h3 className="text-lg mb-2">Performance Preference</h3>
-            <div className="grid grid-cols-2 gap-2">
-              {['speed', 'quality'].map((option) => (
-                <button
-                  key={option}
-                  className={`p-2 rounded ${
-                    settings.performance === option
-                      ? 'bg-[#024aad] text-white'
-                      : 'bg-[#3C3C3E] text-gray-300 hover:bg-[#4C4C4E]'
-                  }`}
-                  onClick={() => setSettings(prev => ({ ...prev, performance: option as any }))}
-                >
-                  {option.charAt(0).toUpperCase() + option.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <h3 className="text-lg mb-2">Mode Preference</h3>
-            <div className="grid grid-cols-3 gap-2">
-              {['default', 'star', 'soar'].map((option) => (
-                <button
-                  key={option}
-                  className={`p-2 rounded ${
-                    settings.mode === option
-                      ? 'bg-[#024aad] text-white'
-                      : 'bg-[#3C3C3E] text-gray-300 hover:bg-[#4C4C4E]'
-                  }`}
-                  onClick={() => setSettings(prev => ({ ...prev, mode: option as any }))}
-                >
-                  {option.toUpperCase()}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-4 mt-6">
-          <button
-            onClick={() => setShowSettings(false)}
-            className="px-4 py-2 bg-[#3C3C3E] rounded hover:bg-[#4C4C4E]"
+    return (
+      <div className="h-screen overflow-y-auto bg-[#1C1C1E] text-white">
+        <div className="max-w-7xl mx-auto p-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#2C2C2E] rounded-xl p-8"
           >
-            Cancel
-          </button>
-          <button
-            onClick={() => setShowSettings(false)}
-            className="px-4 py-2 bg-[#024aad] rounded hover:bg-[#41b0f8]"
-          >
-            Confirm
-          </button>
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-3xl font-bold">Interview Analysis Report</h2>
+              <PDFDownloadLink
+                document={<ReportPDF metrics={performanceMetrics} />}
+                fileName="interview-analysis.pdf"
+                className="bg-[#024aad] text-white px-4 py-2 rounded-lg hover:bg-[#41b0f8] transition-colors"
+              >
+                {({ loading }) => (loading ? 'Preparing PDF...' : 'Download PDF Report')}
+              </PDFDownloadLink>
+            </div>
+            
+            <div className="grid grid-cols-12 gap-8">
+              <div className="col-span-12 md:col-span-4 bg-[#3C3C3E] rounded-lg p-6 text-center">
+                <div className="text-6xl font-bold text-[#024aad] mb-2">
+                  {performanceMetrics.overallScore}%
+                </div>
+                <p className="text-gray-400">Overall Performance</p>
+              </div>
+
+              <div className="col-span-12 md:col-span-4 bg-[#3C3C3E] rounded-lg p-6">
+                <h3 className="text-xl font-semibold mb-4">Skill Distribution</h3>
+                <div className="aspect-square">
+                  <Radar 
+                    data={radarData}
+                    options={{
+                      scales: {
+                        r: {
+                          beginAtZero: true,
+                          max: 100,
+                          ticks: { color: 'white' },
+                          grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                          pointLabels: { color: 'white' }
+                        }
+                      },
+                      plugins: {
+                        legend: { display: false }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-12 md:col-span-4 bg-[#3C3C3E] rounded-lg p-6">
+                <h3 className="text-xl font-semibold mb-4">Performance Breakdown</h3>
+                <div className="aspect-square">
+                  <Doughnut 
+                    data={doughnutData}
+                    options={{
+                      plugins: {
+                        legend: {
+                          position: 'bottom',
+                          labels: { color: 'white' }
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div className="col-span-12 bg-[#3C3C3E] rounded-lg p-6">
+                <h3 className="text-xl font-semibold mb-4">Progress Throughout Interview</h3>
+                <Line 
+                  data={progressData}
+                  options={{
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: 'white' }
+                      },
+                      x: {
+                        grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                        ticks: { color: 'white' }
+                      }
+                    },
+                    plugins: {
+                      legend: {
+                        labels: { color: 'white' }
+                      }
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="col-span-12 bg-[#3C3C3E] rounded-lg p-6">
+                <h3 className="text-xl font-semibold mb-4">Recommendations</h3>
+                <ul className="space-y-3 text-gray-300">
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#024aad]">→</span>
+                    Consider providing more specific metrics in project outcomes
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#024aad]">→</span>
+                    Expand on technical implementation details when discussing solutions
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-[#024aad]">→</span>
+                    Practice more concise responses while maintaining detail quality
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            <div className="mt-8 flex justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="bg-[#024aad] text-white px-6 py-3 rounded-lg hover:bg-[#41b0f8] transition-colors"
+              >
+                Start New Interview
+              </button>
+            </div>
+          </motion.div>
         </div>
       </div>
-    </div>
-  );
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#1C1C1E] text-white">
-      {/* Top Navigation Bar */}
+    <div className="h-screen flex flex-col bg-[#1C1C1E] text-white">
       <nav className="flex items-center justify-between px-6 py-3 bg-[#2C2C2E]">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-semibold">Code Interview</h1>
@@ -389,13 +433,13 @@ function MockInterview() {
         </div>
         <div className="flex items-center gap-4">
           <button 
-            className={`p-2 hover:bg-[#3C3C3E] rounded-full transition-colors ${!isVideoOn ? 'bg-red-500/20 text-red-500' : ''}`}
-            onClick={toggleCamera}
+            className="p-2 hover:bg-[#3C3C3E] rounded-full transition-colors"
+            onClick={() => setIsVideoOn(!isVideoOn)}
           >
             {isVideoOn ? <Video size={20} /> : <VideoOff size={20} />}
           </button>
           <button 
-            className={`p-2 hover:bg-[#3C3C3E] rounded-full transition-colors ${isMuted ? 'bg-red-500/20 text-red-500' : ''}`}
+            className="p-2 hover:bg-[#3C3C3E] rounded-full transition-colors"
             onClick={() => {
               setIsMuted(!isMuted);
               if (isMuted) {
@@ -410,15 +454,12 @@ function MockInterview() {
           <button className="p-2 hover:bg-[#3C3C3E] rounded-full transition-colors">
             <Sun size={20} />
           </button>
-          <button 
-            className="p-2 hover:bg-[#3C3C3E] rounded-full transition-colors"
-            onClick={() => setShowSettings(true)}
-          >
+          <button className="p-2 hover:bg-[#3C3C3E] rounded-full transition-colors">
             <Settings size={20} />
           </button>
           <button 
-            className={`p-2 hover:bg-[#3C3C3E] rounded-full transition-colors ${isRecording ? 'bg-red-500' : ''}`}
-            onClick={toggleMicrophone}
+            className={`p-2 hover:bg-[#3C3C3E] rounded-full transition-colors ${isRecording ? 'bg-[#024aad] hover:bg-[#41b0f8]' : ''}`}
+            onClick={toggleRecording}
           >
             <Mic size={20} />
           </button>
@@ -433,21 +474,11 @@ function MockInterview() {
         </div>
       </nav>
 
-      {/* Main Content */}
-      <div className="grid grid-cols-12 gap-6 p-6">
-        {/* Left Panel */}
-        <div className="col-span-6 space-y-6">
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 p-6 overflow-hidden">
+        <div className="flex-1 flex flex-col gap-6 min-w-0">
           <div className="bg-[#2C2C2E] rounded-lg overflow-hidden">
             <div className="aspect-video bg-black relative">
-              {isVideoOn ? (
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  muted
-                  className="w-full h-full object-cover"
-                />
-              ) : (
+              {!isVideoOn && (
                 <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
                   <p className="text-gray-400">Camera is turned off</p>
                 </div>
@@ -455,23 +486,19 @@ function MockInterview() {
             </div>
           </div>
 
-          {/* Transcription Area */}
-          <div className="bg-[#2C2C2E] rounded-lg p-6">
+          <div className="flex-1 bg-[#2C2C2E] rounded-lg p-6 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-4">
               <div className="text-lg">Voice Transcription</div>
               <div className="flex items-center gap-2">
                 {isRecording && (
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                    <span className="w-2 h-2 bg-[#024aad] rounded-full animate-pulse"></span>
                     Recording
                   </span>
                 )}
               </div>
             </div>
-            <div 
-              ref={transcriptRef}
-              className="p-4 bg-[#3C3C3E] rounded-lg min-h-[100px] max-h-[200px] overflow-y-auto"
-            >
+            <div className="flex-1 p-4 bg-[#3C3C3E] rounded-lg overflow-y-auto">
               <p className="text-gray-300">{transcription || 'Start speaking to see transcription...'}</p>
             </div>
             <div className="mt-2 flex justify-end">
@@ -486,8 +513,7 @@ function MockInterview() {
           </div>
         </div>
 
-        {/* Right Panel */}
-        <div className="col-span-6 bg-[#2C2C2E] rounded-lg p-6 flex flex-col">
+        <div className="flex-1 bg-[#2C2C2E] rounded-lg p-6 flex flex-col min-w-0">
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-4">
               <h2 className="text-lg font-semibold">Interview Chat</h2>
@@ -495,12 +521,16 @@ function MockInterview() {
                 {isTranscribing ? 'Active' : 'Ready'}
               </span>
             </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-gray-400">
+                Question {currentQuestionIndex + 1} of {interviewQuestions.length}
+              </span>
+            </div>
           </div>
 
-          {/* Chat Messages */}
           <div 
             ref={chatRef}
-            className="flex-1 overflow-y-auto space-y-4 mb-4 max-h-[400px] p-4 bg-[#3C3C3E] rounded-lg"
+            className="flex-1 overflow-y-auto space-y-4 mb-4 p-4 bg-[#3C3C3E] rounded-lg"
           >
             {messages.map((message) => (
               <div
@@ -514,7 +544,7 @@ function MockInterview() {
                       : 'bg-gray-700 text-white'
                   }`}
                 >
-                  <p className="text-sm">{message.text}</p>
+                  <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                   <span className="text-xs text-gray-300 mt-1 block">
                     {message.timestamp}
                   </span>
@@ -523,65 +553,30 @@ function MockInterview() {
             ))}
           </div>
 
-          {/* Chat Input */}
-          <div className="flex gap-2">
-            <input
-              type="text"
+          <div className="flex gap-2 mt-auto">
+            <textarea
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendMessage();
+                }
+              }}
               placeholder="Type your response..."
-              className="flex-1 bg-[#3C3C3E] rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#024aad]"
+              className="flex-1 bg-[#3C3C3E] rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#024aad] resize-none"
+              rows={3}
+              style={{ minHeight: '60px', maxHeight: '120px' }}
             />
             <button
               onClick={handleSendMessage}
-              className="p-2 bg-[#024aad] hover:bg-[#41b0f8] rounded-lg transition-colors"
+              className="p-2 bg-[#024aad] hover:bg-[#41b0f8] rounded-lg transition-colors self-end"
             >
               <Send size={20} />
             </button>
           </div>
-
-          {/* Performance Metrics */}
-          <div className="mt-8 p-4 bg-[#3C3C3E] rounded-lg">
-            <h3 className="text-lg font-semibold mb-4">Speech Performance</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span>Accuracy</span>
-                <div className="w-48 h-2 bg-gray-700 rounded-full">
-                  <div 
-                    className="h-full bg-[#41b0f8] rounded-full"
-                    style={{ width: `${performanceMetrics.accuracy}%` }}
-                  ></div>
-                </div>
-                <span>{performanceMetrics.accuracy}%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Fluency</span>
-                <div className="w-48 h-2 bg-gray-700 rounded-full">
-                  <div 
-                    className="h-full bg-[#024aad] rounded-full"
-                    style={{ width: `${performanceMetrics.fluency}%` }}
-                  ></div>
-                </div>
-                <span>{performanceMetrics.fluency}%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span>Rhythm & Intonation</span>
-                <div className="w-48 h-2 bg-gray-700 rounded-full">
-                  <div 
-                    className="h-full bg-[#41b0f8] rounded-full"
-                    style={{ width: `${performanceMetrics.rhythm}%` }}
-                  ></div>
-                </div>
-                <span>{performanceMetrics.rhythm}%</span>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
-
-      {/* Settings Modal */}
-      {showSettings && <SettingsModal />}
     </div>
   );
 }
