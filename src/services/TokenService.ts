@@ -1,5 +1,5 @@
 /**
- * Secure token storage service that keeps tokens in memory
+ * Secure token storage service that keeps tokens in localstorage
  * and syncs with HTTP-only cookies for persistence
  */
 class TokenService {
@@ -8,8 +8,14 @@ class TokenService {
   private refreshToken: string | null = null;
   private refreshing: boolean = false;
   private refreshQueue: Array<() => void> = [];
+  private readonly ACCESS_TOKEN_KEY = 'auth_access_token';
+  private readonly REFRESH_TOKEN_KEY = 'auth_refresh_token';
 
-  private constructor() {}
+  private constructor() {
+    // Initialize tokens from localStorage
+    this.accessToken = localStorage.getItem(this.ACCESS_TOKEN_KEY);
+    this.refreshToken = localStorage.getItem(this.REFRESH_TOKEN_KEY);
+  }
 
   static getInstance(): TokenService {
     if (!TokenService.instance) {
@@ -19,16 +25,28 @@ class TokenService {
   }
 
   getAccessToken(): string | null {
-    return this.accessToken;
+    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
   }
 
   getRefreshToken(): string | null {
-    return this.refreshToken;
+    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
   }
 
   setTokens(access: string | null, refresh: string | null): void {
     this.accessToken = access;
     this.refreshToken = refresh;
+    
+    if (access) {
+      localStorage.setItem(this.ACCESS_TOKEN_KEY, access);
+    } else {
+      localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    }
+    
+    if (refresh) {
+      localStorage.setItem(this.REFRESH_TOKEN_KEY, refresh);
+    } else {
+      localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+    }
   }
 
   isRefreshing(): boolean {
@@ -59,6 +77,8 @@ class TokenService {
     this.refreshToken = null;
     this.refreshing = false;
     this.clearQueue();
+    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
+    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
   }
 }
 

@@ -2,18 +2,34 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Video, Mic, MessageSquare, CheckCircle } from 'lucide-react';
 import ResumeUploadModal from '../components/ResumeUploadModal';
+import { uploadService } from '../services/uploadService';
 
 function MockInterviewLanding() {
   const navigate = useNavigate();
   const [isResumeModalOpen, setIsResumeModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [uploadError, setUploadError] = useState<string>('');
 
   const startInterview = () => {
     setIsResumeModalOpen(true);
   };
 
-  const handleResumeUpload = (file: File) => {
-    console.log('Uploaded file:', file);
-    navigate('/mock-interview/start');
+  const handleResumeUpload = async (file: File) => {
+    setIsLoading(true);
+    setUploadError('');
+    
+    try {
+      const response = await uploadService.uploadResume(file);
+      if (response.interview_id) {
+        navigate(`/mock-interview/start?id=${response.interview_id}`);
+      } else {
+        throw new Error('Invalid response from server');
+      }
+    } catch (error: any) {
+      setUploadError(error.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleStartWithoutResume = () => {
@@ -77,9 +93,14 @@ function MockInterviewLanding() {
 
       <ResumeUploadModal
         isOpen={isResumeModalOpen}
-        onClose={() => setIsResumeModalOpen(false)}
+        onClose={() => {
+          setIsResumeModalOpen(false);
+          setUploadError('');
+        }}
         onUpload={handleResumeUpload}
         onStartWithoutResume={handleStartWithoutResume}
+        isLoading={isLoading}
+        error={uploadError}
       />
     </div>
   );

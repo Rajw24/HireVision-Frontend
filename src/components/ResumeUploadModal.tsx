@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Dialog, Transition } from '@headlessui/react';
 import { Fragment } from 'react';
 import { useDropzone } from 'react-dropzone';
@@ -8,17 +8,40 @@ interface ResumeUploadModalProps {
   isOpen: boolean;
   onClose: () => void;
   onUpload: (file: File) => void;
+  onStartWithoutResume: () => void;
+  isLoading?: boolean;
+  error?: string;
 }
 
-function ResumeUploadModal({ isOpen, onClose, onUpload }: ResumeUploadModalProps) {
+function ResumeUploadModal({ 
+  isOpen, 
+  onClose, 
+  onUpload, 
+  onStartWithoutResume,
+  isLoading = false,
+  error 
+}: ResumeUploadModalProps) {
+  const [dragError, setDragError] = useState<string>('');
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     accept: {
       'application/pdf': ['.pdf'],
-      'application/msword': ['.doc'],
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx']
     },
     maxFiles: 1,
-    onDrop: (acceptedFiles) => {
+    maxSize: 5 * 1024 * 1024, // 5MB
+    onDrop: (acceptedFiles, rejectedFiles) => {
+      if (rejectedFiles.length > 0) {
+        const error = rejectedFiles[0].errors[0];
+        if (error.code === 'file-too-large') {
+          setDragError('File is too large. Maximum size is 5MB');
+        } else if (error.code === 'file-invalid-type') {
+          setDragError('Only PDF files are accepted');
+        } else {
+          setDragError('Invalid file');
+        }
+        return;
+      }
+      setDragError('');
       if (acceptedFiles.length > 0) {
         onUpload(acceptedFiles[0]);
       }
@@ -27,7 +50,7 @@ function ResumeUploadModal({ isOpen, onClose, onUpload }: ResumeUploadModalProps
 
   return (
     <Transition appear show={isOpen} as={Fragment}>
-      <Dialog as="div" className="relative z-50" onClose={() => {}}>
+      <Dialog as="div" className="relative z-50" onClose={isLoading ? () => {} : onClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -60,10 +83,18 @@ function ResumeUploadModal({ isOpen, onClose, onUpload }: ResumeUploadModalProps
                 </Dialog.Title>
                 
                 <div className="mt-2">
+                  {(error || dragError) && (
+                    <div className="flex items-center gap-2 p-4 bg-red-500/10 rounded-lg mb-4">
+                      <AlertCircle className="text-red-500" size={20} />
+                      <p className="text-sm text-red-500">
+                        {error || dragError}
+                      </p>
+                    </div>
+                  )}
                   <div className="flex items-center gap-2 p-4 bg-[#024aad]/10 rounded-lg">
                     <AlertCircle className="text-[#024aad]" size={20} />
                     <p className="text-sm text-[#024aad]">
-                      A resume is required to proceed with the interview
+                      Upload your resume to get personalized interview questions
                     </p>
                   </div>
                 </div>
@@ -72,16 +103,26 @@ function ResumeUploadModal({ isOpen, onClose, onUpload }: ResumeUploadModalProps
                   <div
                     {...getRootProps()}
                     className={`p-8 border-2 border-dashed rounded-lg text-center cursor-pointer transition-colors
-                      ${isDragActive ? 'border-[#024aad] bg-[#024aad]/10' : 'border-gray-300 hover:border-[#024aad]'}`}
+                      ${isDragActive ? 'border-[#024aad] bg-[#024aad]/10' : 'border-gray-300 hover:border-[#024aad]'}
+                      ${isLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
-                    <input {...getInputProps()} />
-                    <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                    <p className="mt-2 text-sm text-gray-600">
-                      Drag & drop your resume here, or click to select file
-                    </p>
-                    <p className="mt-1 text-xs text-gray-500">
-                      Supported formats: PDF, DOC, DOCX
-                    </p>
+                    <input {...getInputProps()} disabled={isLoading} />
+                    {isLoading ? (
+                      <div className="flex flex-col items-center">
+                        <div className="animate-spin rounded-full h-8 w-8 border-2 border-[#024aad] border-t-transparent" />
+                        <p className="mt-2 text-sm text-gray-600">Uploading...</p>
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                        <p className="mt-2 text-sm text-gray-600">
+                          Drag & drop your resume here, or click to select file
+                        </p>
+                        <p className="mt-1 text-xs text-gray-500">
+                          Maximum file size: 5MB. PDF format only.
+                        </p>
+                      </>
+                    )}
                   </div>
                 </div>
 

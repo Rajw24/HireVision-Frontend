@@ -16,6 +16,7 @@ import {
   Filler
 } from 'chart.js';
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
+import { interviewService } from '../services/interviewService';
 
 ChartJS.register(
   CategoryScale,
@@ -114,6 +115,12 @@ interface PerformanceMetrics {
   overallScore: number;
 }
 
+interface InterviewState {
+  interviewId: number | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
 function MockInterview() {
   const [time, setTime] = useState('00:00');
   const [isTranscribing, setIsTranscribing] = useState(true);
@@ -132,10 +139,21 @@ function MockInterview() {
     confidence: 88,
     overallScore: 86
   });
+  const [interviewState, setInterviewState] = useState<InterviewState>({
+    interviewId: null,
+    isLoading: false,
+    error: null,
+  });
 
   const chatRef = useRef<HTMLDivElement>(null);
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
   const recognitionRef = useRef<any>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const MAX_RETRIES = 3;
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const requestCacheRef = useRef<Map<string, any>>(new Map());
 
   useEffect(() => {
     let startTime = Date.now();
@@ -168,10 +186,65 @@ function MockInterview() {
       };
     }
 
-    addMessage('ai', interviewQuestions[0]);
-    speakQuestion(interviewQuestions[0]);
+    abortControllerRef.current = new AbortController();
+    const signal = abortControllerRef.current.signal;
+
+    const initializeInterview = async () => {
+      if (isSubmitting) return;
+
+      try {
+        setInterviewState(prev => ({ ...prev, isLoading: true, error: null }));
+        setIsSubmitting(true);
+
+        // Create minimal PDF content as a Uint8Array
+        const pdfContent = new Uint8Array([
+          0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, // %PDF-1.7
+          0x0a, 0x74, 0x72, 0x61, 0x69, 0x6c, 0x65, 0x72, // trailer
+          0x3c, 0x3c, 0x3e, 0x3e                          // <<>>
+        ]);
+        
+        // Convert to base64 string
+        const base64Resume = btoa(String.fromCharCode.apply(null, pdfContent));
+        
+        const response = await handleRequestWithDebounce(
+          () => interviewService.startInterview(
+            { resume: base64Resume },  // Send raw base64 string
+            abortControllerRef.current?.signal
+          ),
+          'interview-init'
+        );
+
+        if (!response || !response.interview_id) {
+          throw new Error('Invalid response from server');
+        }
+
+        setInterviewState(prev => ({ 
+          ...prev, 
+          interviewId: response.interview_id,
+          isLoading: false 
+        }));
+        
+        if (response.question) {
+          addMessage('ai', response.question);
+          speakQuestion(response.question);
+        }
+        
+      } catch (error: any) {
+        console.error('Interview initialization error:', error);
+        setInterviewState(prev => ({ 
+          ...prev, 
+          isLoading: false, 
+          error: error.message || 'Failed to start interview' 
+        }));
+      } finally {
+        setIsSubmitting(false);
+      }
+    };
+
+    initializeInterview();
 
     return () => {
+      abortControllerRef.current?.abort();
       if (speechSynthesisRef.current) {
         window.speechSynthesis.cancel();
       }
@@ -179,7 +252,7 @@ function MockInterview() {
         recognitionRef.current.stop();
       }
     };
-  }, []);
+  }, [retryCount]);
 
   useEffect(() => {
     if (chatRef.current) {
@@ -215,11 +288,64 @@ function MockInterview() {
     setMessages(prev => [...prev, newMessage]);
   };
 
-  const handleSendMessage = () => {
-    if (userInput.trim()) {
+  const handleSendMessage = async () => {
+    if (!userInput.trim() || !interviewState.interviewId || isSubmitting) return;
+
+    try {
+      setInterviewState(prev => ({ ...prev, isLoading: true, error: null }));
+      setIsSubmitting(true);
       addMessage('user', userInput);
+
+      const response = await handleRequestWithDebounce(
+        () => interviewService.submitAnswer(
+          interviewState.interviewId!,
+          userInput,
+          abortControllerRef.current?.signal
+        ),
+        `answer-${Date.now()}`
+      );
+
+      if (!response) {
+        throw new Error('No response from server');
+      }
+
       setUserInput('');
-      handleNextQuestion();
+
+      if (response.status === 'completed') {
+        const results = await handleRequestWithDebounce(
+          () => interviewService.getResults(
+            interviewState.interviewId!,
+            abortControllerRef.current?.signal
+          ),
+          `results-${interviewState.interviewId}`
+        );
+
+        if (!results || !results.scores) {
+          throw new Error('Invalid results from server');
+        }
+
+        setPerformanceMetrics({
+          technicalAccuracy: results.scores.accuracy || 0,
+          communicationClarity: results.scores.fluency || 0,
+          problemSolving: results.scores.rhythm || 0,
+          confidence: results.scores.overall || 0,
+          overallScore: results.scores.overall || 0
+        });
+        setShowAnalysis(true);
+      } else if (response.question) {
+        addMessage('ai', response.question);
+        speakQuestion(response.question);
+        setCurrentQuestionIndex(prev => prev + 1);
+      }
+    } catch (error: any) {
+      console.error('Send message error:', error);
+      setInterviewState(prev => ({ 
+        ...prev, 
+        error: error.message || 'Failed to submit answer' 
+      }));
+    } finally {
+      setInterviewState(prev => ({ ...prev, isLoading: false }));
+      setIsSubmitting(false);
     }
   };
 
@@ -247,6 +373,30 @@ function MockInterview() {
   const handleCopy = (text: string) => {
     navigator.clipboard.writeText(text);
     setUserInput(text);
+  };
+
+  const handleRequestWithDebounce = async (fn: () => Promise<any>, cacheKey?: string) => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (cacheKey && requestCacheRef.current.has(cacheKey)) {
+      return requestCacheRef.current.get(cacheKey);
+    }
+
+    return new Promise((resolve, reject) => {
+      debounceTimerRef.current = setTimeout(async () => {
+        try {
+          const result = await fn();
+          if (cacheKey) {
+            requestCacheRef.current.set(cacheKey, result);
+          }
+          resolve(result);
+        } catch (error) {
+          reject(error);
+        }
+      }, 500); // 500ms debounce
+    });
   };
 
   if (showAnalysis) {
@@ -421,6 +571,22 @@ function MockInterview() {
     );
   }
 
+  if (interviewState.error) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#1C1C1E] text-white">
+        <div className="text-center">
+          <p className="text-red-500 mb-4">{interviewState.error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-[#024aad] text-white px-6 py-3 rounded-lg hover:bg-[#41b0f8] transition-colors"
+          >
+            Retry Interview
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen flex flex-col bg-[#1C1C1E] text-white">
       <nav className="flex items-center justify-between px-6 py-3 bg-[#2C2C2E]">
@@ -577,6 +743,11 @@ function MockInterview() {
           </div>
         </div>
       </div>
+      {interviewState.isLoading && (
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#024aad] border-t-transparent"></div>
+        </div>
+      )}
     </div>
   );
 }

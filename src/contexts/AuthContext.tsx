@@ -20,7 +20,8 @@ type AuthAction =
   | { type: 'AUTH_SUCCESS'; payload: any }
   | { type: 'AUTH_FAILURE'; payload: string }
   | { type: 'AUTH_LOGOUT' }
-  | { type: 'CLEAR_ERROR' };
+  | { type: 'CLEAR_ERROR' }
+  | { type: 'SIGNUP_SUCCESS' };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
@@ -52,6 +53,12 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
       };
     case 'CLEAR_ERROR':
       return { ...state, error: null };
+    case 'SIGNUP_SUCCESS':
+      return {
+        ...state,
+        isLoading: false,
+        error: null
+      };
     default:
       return state;
   }
@@ -98,6 +105,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const signup = useCallback(async (formData: {
+    username: string;
+    password: string;
+    email: string;
+    first_name: string;
+    last_name: string;
+  }) => {
+    dispatch({ type: 'AUTH_START' });
+    try {
+      const response = await HttpClientConfig.post('/auth/signup/', formData);
+      dispatch({ type: 'SIGNUP_SUCCESS' });
+      toast.success(response.data.message);
+    } catch (error: any) {
+      const message = error.response?.data?.error || 'Signup failed';
+      dispatch({ type: 'AUTH_FAILURE', payload: message });
+      toast.error(message);
+      throw new AuthError(message);
+    }
+  }, []);
+
   const clearError = useCallback(() => {
     dispatch({ type: 'CLEAR_ERROR' });
   }, []);
@@ -106,7 +133,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     ...state,
     login,
     logout,
-    clearError
+    clearError,
+    signup
   };
 
   return (

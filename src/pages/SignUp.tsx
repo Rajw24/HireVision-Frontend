@@ -14,7 +14,7 @@ function SignUp() {
     last_name: '',
   });
   const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
+  const { signup } = useAuth();
   const navigate = useNavigate();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -25,7 +25,7 @@ function SignUp() {
     e.preventDefault();
     setLoading(true);
     try {
-      await signUp(formData);
+      await signup(formData);
       toast.success('Registration successful! Please check your email.');
       navigate('/login');
     } catch (error) {
