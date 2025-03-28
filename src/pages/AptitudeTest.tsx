@@ -30,7 +30,7 @@ function AptitudeTest({ onBack, selectedCategory }) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ExamResult | null>(null);
-  const [countdownTime, setCountdownTime] = useState(Date.now() + 180000);
+  const [countdownTime, setCountdownTime] = useState(Date.now() + 45000);
 
   useEffect(() => {
     if (showInstructions) {
@@ -67,7 +67,7 @@ function AptitudeTest({ onBack, selectedCategory }) {
       setExamId(response.data.exam_id);
       setQuestions(response.data.questions);
       setTestStarted(true);
-      setCountdownTime(Date.now() + 180000); // Set timer only after questions are loaded
+      setCountdownTime(Date.now() + 45000); // Set timer only after questions are loaded
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load questions');
     } finally {
@@ -84,7 +84,7 @@ function AptitudeTest({ onBack, selectedCategory }) {
   const handleNextQuestion = useCallback(() => {
     if (currentQuestion < questions.length - 1) {
       setCurrentQuestion(prev => prev + 1);
-      setCountdownTime(Date.now() + 180000); // Reset timer when moving to next question
+      setCountdownTime(Date.now() + 45000); // Reset timer when moving to next question
     }
   }, [currentQuestion, questions.length]);
 

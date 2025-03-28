@@ -43,16 +43,16 @@ function Navbar() {
               AI Resume Builder
             </Link>
             <Link
-              to="/mock-interview"
-              className="text-[#024aad] hover:text-[#41b0f8] transition-colors duration-300"
-            >
-              AI Mock Interview
-            </Link>
-            <Link
               to="/aptitude-test"
               className="text-[#024aad] hover:text-[#41b0f8] transition-colors duration-300"
             >
               Aptitude Test
+            </Link>
+            <Link
+              to="/mock-interview"
+              className="text-[#024aad] hover:text-[#41b0f8] transition-colors duration-300"
+            >
+              AI Mock Interview
             </Link>
             <Link
               to="/question-bank"

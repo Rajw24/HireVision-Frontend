@@ -11,6 +11,14 @@ class TokenService {
   private readonly ACCESS_TOKEN_KEY = 'auth_access_token';
   private readonly REFRESH_TOKEN_KEY = 'auth_refresh_token';
 
+/*************  ✨ Codeium Command ⭐  *************/
+  /**
+   * Initializes the TokenService by retrieving the access and refresh tokens
+   * from localStorage, if available. This ensures that the service starts
+   * with the current token values stored in the user's local storage.
+   */
+
+/******  08a5b3f4-3bcb-4184-a74b-35807b30937e  *******/
   private constructor() {
     // Initialize tokens from localStorage
     this.accessToken = localStorage.getItem(this.ACCESS_TOKEN_KEY);

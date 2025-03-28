@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Video, Mic, MessageSquare, CheckCircle } from 'lucide-react';
 import ResumeUploadModal from '../components/ResumeUploadModal';
 import { uploadService } from '../services/uploadService';
+import { interviewService } from '../services/interviewService';
 
 function MockInterviewLanding() {
   const navigate = useNavigate();
@@ -19,7 +20,11 @@ function MockInterviewLanding() {
     setUploadError('');
     
     try {
-      const response = await uploadService.uploadResume(file);
+      // First upload the resume
+      const uploadResponse = await uploadService.uploadResume(file);
+      
+      // Then start the interview with the received interview_id
+      const response = await interviewService.startInterview(uploadResponse.interview_id);
       if (response.interview_id) {
         navigate(`/mock-interview/start?id=${response.interview_id}`);
       } else {

@@ -17,6 +17,8 @@ import {
 } from 'chart.js';
 import { Document, Page, Text, View, StyleSheet, PDFDownloadLink } from '@react-pdf/renderer';
 import { interviewService } from '../services/interviewService';
+import { uploadService } from '../services/uploadService';
+import { useLocation, useSearchParams } from 'react-router-dom';
 
 ChartJS.register(
   CategoryScale,
@@ -87,19 +89,6 @@ const ReportPDF = ({ metrics }) => (
   </Document>
 );
 
-const interviewQuestions = [
-  "Can you tell me about a challenging project you worked on and how you handled it?",
-  "How do you handle conflicts in a team environment?",
-  "What's your approach to learning new technologies?",
-  "Describe a situation where you had to meet a tight deadline.",
-  "How do you ensure code quality in your projects?",
-  "Tell me about a time you had to deal with a difficult coworker.",
-  "What's your experience with agile methodologies?",
-  "How do you handle technical debt in your projects?",
-  "Describe your debugging process.",
-  "What's your approach to writing maintainable code?"
-];
-
 interface Message {
   id: string;
   type: 'ai' | 'user';
@@ -144,6 +133,7 @@ function MockInterview() {
     isLoading: false,
     error: null,
   });
+  const [questions, setQuestions] = useState<string[]>([]);
 
   const chatRef = useRef<HTMLDivElement>(null);
   const speechSynthesisRef = useRef<SpeechSynthesisUtterance | null>(null);
@@ -154,6 +144,7 @@ function MockInterview() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const requestCacheRef = useRef<Map<string, any>>(new Map());
+  const [searchParams] = useSearchParams();
 
   useEffect(() => {
     let startTime = Date.now();
@@ -163,6 +154,28 @@ function MockInterview() {
       const seconds = Math.floor((elapsedTime % 60000) / 1000);
       setTime(`${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`);
     }, 1000);
+
+    // Get interview ID from URL params
+    const interviewId = Number(searchParams.get('id'));
+    if (!interviewId) {
+      setInterviewState(prev => ({ 
+        ...prev, 
+        error: 'Invalid interview ID' 
+      }));
+      return;
+    }
+
+    setInterviewState(prev => ({ 
+      ...prev, 
+      interviewId,
+      isLoading: false 
+    }));
+
+    // Add first question to messages
+    const firstQuestion = messages[0]?.text;
+    if (firstQuestion) {
+      speakQuestion(firstQuestion);
+    }
 
     return () => clearInterval(timer);
   }, []);
@@ -186,65 +199,7 @@ function MockInterview() {
       };
     }
 
-    abortControllerRef.current = new AbortController();
-    const signal = abortControllerRef.current.signal;
-
-    const initializeInterview = async () => {
-      if (isSubmitting) return;
-
-      try {
-        setInterviewState(prev => ({ ...prev, isLoading: true, error: null }));
-        setIsSubmitting(true);
-
-        // Create minimal PDF content as a Uint8Array
-        const pdfContent = new Uint8Array([
-          0x25, 0x50, 0x44, 0x46, 0x2d, 0x31, 0x2e, 0x37, // %PDF-1.7
-          0x0a, 0x74, 0x72, 0x61, 0x69, 0x6c, 0x65, 0x72, // trailer
-          0x3c, 0x3c, 0x3e, 0x3e                          // <<>>
-        ]);
-        
-        // Convert to base64 string
-        const base64Resume = btoa(String.fromCharCode.apply(null, pdfContent));
-        
-        const response = await handleRequestWithDebounce(
-          () => interviewService.startInterview(
-            { resume: base64Resume },  // Send raw base64 string
-            abortControllerRef.current?.signal
-          ),
-          'interview-init'
-        );
-
-        if (!response || !response.interview_id) {
-          throw new Error('Invalid response from server');
-        }
-
-        setInterviewState(prev => ({ 
-          ...prev, 
-          interviewId: response.interview_id,
-          isLoading: false 
-        }));
-        
-        if (response.question) {
-          addMessage('ai', response.question);
-          speakQuestion(response.question);
-        }
-        
-      } catch (error: any) {
-        console.error('Interview initialization error:', error);
-        setInterviewState(prev => ({ 
-          ...prev, 
-          isLoading: false, 
-          error: error.message || 'Failed to start interview' 
-        }));
-      } finally {
-        setIsSubmitting(false);
-      }
-    };
-
-    initializeInterview();
-
     return () => {
-      abortControllerRef.current?.abort();
       if (speechSynthesisRef.current) {
         window.speechSynthesis.cancel();
       }
@@ -252,13 +207,44 @@ function MockInterview() {
         recognitionRef.current.stop();
       }
     };
-  }, [retryCount]);
+  }, []);
 
   useEffect(() => {
     if (chatRef.current) {
       chatRef.current.scrollTop = chatRef.current.scrollHeight;
     }
   }, [messages]);
+
+  useEffect(() => {
+    const initializeInterview = async () => {
+      try {
+        setInterviewState(prev => ({ ...prev, isLoading: true }));
+        const response = await interviewService.startInterview();
+        
+        if (response && response.question) {
+          setQuestions([response.question]);
+          addMessage('ai', response.question);
+          speakQuestion(response.question);
+          setInterviewState(prev => ({ 
+            ...prev, 
+            interviewId: response.interview_id,
+            isLoading: false 
+          }));
+        }
+      } catch (error: any) {
+        console.error('Interview initialization error:', error);
+        setInterviewState(prev => ({ 
+          ...prev, 
+          error: 'Failed to start interview',
+          isLoading: false 
+        }));
+      }
+    };
+
+    initializeInterview();
+    
+    // ...rest of the existing useEffect code...
+  }, []);
 
   const speakQuestion = (text: string) => {
     if (speechSynthesisRef.current && !isMuted) {
@@ -267,14 +253,29 @@ function MockInterview() {
     }
   };
 
-  const handleNextQuestion = () => {
-    if (currentQuestionIndex < interviewQuestions.length - 1) {
-      const nextIndex = currentQuestionIndex + 1;
-      setCurrentQuestionIndex(nextIndex);
-      addMessage('ai', interviewQuestions[nextIndex]);
-      speakQuestion(interviewQuestions[nextIndex]);
-    } else {
-      setShowAnalysis(true);
+  const handleNextQuestion = async () => {
+    if (!interviewState.interviewId) return;
+
+    try {
+      const response = await interviewService.submitAnswer(
+        interviewState.interviewId,
+        transcription || userInput
+      );
+
+      if (response.status === 'completed') {
+        setShowAnalysis(true);
+      } else if (response.question) {
+        setQuestions(prev => [...prev, response.question]);
+        addMessage('ai', response.question);
+        speakQuestion(response.question);
+        setCurrentQuestionIndex(prev => prev + 1);
+      }
+    } catch (error) {
+      console.error('Next question error:', error);
+      setInterviewState(prev => ({ 
+        ...prev, 
+        error: 'Failed to get next question' 
+      }));
     }
   };
 
@@ -333,6 +334,7 @@ function MockInterview() {
         });
         setShowAnalysis(true);
       } else if (response.question) {
+        setQuestions(prev => [...prev, response.question]);
         addMessage('ai', response.question);
         speakQuestion(response.question);
         setCurrentQuestionIndex(prev => prev + 1);
@@ -609,7 +611,7 @@ function MockInterview() {
             onClick={() => {
               setIsMuted(!isMuted);
               if (isMuted) {
-                speakQuestion(interviewQuestions[currentQuestionIndex]);
+                speakQuestion(questions[currentQuestionIndex]);
               } else {
                 window.speechSynthesis.cancel();
               }
@@ -689,7 +691,7 @@ function MockInterview() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-sm text-gray-400">
-                Question {currentQuestionIndex + 1} of {interviewQuestions.length}
+                Question {currentQuestionIndex + 1} of {questions.length}
               </span>
             </div>
           </div>

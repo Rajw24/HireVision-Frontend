@@ -66,17 +66,15 @@ api.interceptors.response.use(
 );
 
 export const interviewService = {
-  startInterview: async (resume: File) => {
-    const formData = new FormData();
-    formData.append('resume', resume);
-    const response = await api.post('/start-interview/', formData);
+  startInterview: async (interview_id?: number) => {
+    const response = await api.post('/start-interview/', { interview_id });
     return response.data;
   },
 
   submitAnswer: async (interviewId: number, answer: string) => {
     const response = await api.post('/next-question/', {
       interview_id: interviewId,
-      answer,
+      answer: answer,
     });
     return response.data;
   },

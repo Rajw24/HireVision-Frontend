@@ -11,7 +11,7 @@ export const uploadService = {
 
       const accessToken = TokenService.getAccessToken();
       const response = await axios.post(
-        `${API_URL}/aiinterview/start-interview/`,
+        `${API_URL}/aiinterview/upload-resume/`,
         formData,
         {
           headers: {
