@@ -113,7 +113,7 @@ const companies = [
   },
   {
     name: 'NASA',
-    logo: 'https://www.nasa.gov/sites/all/themes/custom/nasatwo/images/favicons/favicon.ico',
+    logo: 'https://www.nasa.gov/wp-content/uploads/2023/04/nasa-logo-web-rgb.png',
     questions: [
       'Plan a deep space communication architecture',
       'Implement a simulation for orbital mechanics',
@@ -140,7 +140,7 @@ const companies = [
   },
   {
     name: 'Boeing',
-    logo: 'https://www.boeing.com/favicon.ico',
+    logo: 'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSkRUu1dvJSCy6m_0Avdrz_X9AbYTnmYOhLC83XIZYTGzBQia6Y9ndFL6H-sx4Afqn7k54&usqp=CAU',
     questions: [
       'Design an in-flight entertainment streaming platform',
       'Implement a flight route optimization system',
