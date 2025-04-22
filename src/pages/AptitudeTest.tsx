@@ -231,11 +231,11 @@ function AptitudeTest({ onBack, selectedCategory }) {
             <button
               key={index}
               onClick={() => handleAnswerSelection(currentQ.id, option)}
-              className={`w-full text-left p-4 rounded-lg border ${
+              className={`w-full text-left p-4 rounded-lg border transition-all duration-200 ${
                 userAnswers.get(currentQ.id) === option
-                  ? 'border-[#024aad] bg-[#f8fafc]'
-                  : 'border-gray-200 hover:border-[#024aad] hover:bg-[#f8fafc]'
-              } transition-colors`}
+                  ? 'border-[#024aad] bg-[#f0f7ff] shadow-sm'
+                  : 'border-gray-200 hover:border-[#41b0f8] hover:bg-[#f8fafc]'
+              }`}
             >
               {option}
             </button>
@@ -247,11 +247,11 @@ function AptitudeTest({ onBack, selectedCategory }) {
             <button
               onClick={handleNextQuestion}
               disabled={!hasAnswered}
-              className={`px-6 py-2 rounded-lg font-medium ${
+              className={`px-6 py-2 rounded-lg font-medium transition-colors duration-200 ${
                 hasAnswered
                   ? 'bg-[#024aad] text-white hover:bg-[#41b0f8]'
                   : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-              } transition-colors`}
+              }`}
             >
               Next Question
             </button>
@@ -259,11 +259,11 @@ function AptitudeTest({ onBack, selectedCategory }) {
             <button
               onClick={submitAnswers}
               disabled={!hasAnswered}
-              className={`px-6 py-2 rounded-lg font-medium ${
+              className={`px-6 py-2 rounded-lg font-medium transition-colors duration-200 ${
                 hasAnswered
                   ? 'bg-green-600 text-white hover:bg-green-700'
                   : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-              } transition-colors`}
+              }`}
             >
               Submit Test
             </button>
@@ -275,7 +275,7 @@ function AptitudeTest({ onBack, selectedCategory }) {
 
   // Update the return section to show loading screen properly
   return (
-    <div className="min-h-screen bg-white py-12">
+    <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Show loading screen when loading is true */}
         {isLoading && <LoadingScreen />}
@@ -288,39 +288,68 @@ function AptitudeTest({ onBack, selectedCategory }) {
               <div className="mb-4">
                 <button 
                   onClick={onBack} 
-                  className="text-[#024aad] hover:underline font-medium"
+                  className="text-[#024aad] hover:underline font-medium flex items-center"
                 >
-                  &larr; Back
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                  </svg>
+                  Back to Categories
                 </button>
               </div>
             )}
 
             {/* Initial Start Test Screen */}
             {!showInstructions && !testStarted && !showScore && (
-              <div className="text-center">
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.5 }}
+                className="text-center"
+              >
                 <h1 className="text-4xl font-bold text-[#024aad] mb-8">Aptitude Test</h1>
                 <p className="text-xl text-gray-600 mb-12">
                   Test your skills with our comprehensive aptitude assessment
                 </p>
-                <button
+                <motion.button
                   onClick={handleStartTest}
-                  className="bg-[#024aad] text-white px-8 py-4 rounded-lg font-semibold hover:bg-[#41b0f8] transition-colors"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-[#024aad] text-white px-8 py-4 rounded-lg font-semibold hover:bg-[#41b0f8] transition-colors shadow-md"
                 >
                   Start Test
-                </button>
-              </div>
+                </motion.button>
+              </motion.div>
             )}
 
             {/* Instructions Screen */}
             {showInstructions && !testStarted && (
-              <div className="bg-white p-8 rounded-xl shadow-lg">
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white p-8 rounded-xl shadow-lg"
+              >
                 <h2 className="text-2xl font-bold text-[#024aad] mb-6">Test Instructions</h2>
                 <div className="space-y-4 text-gray-600">
-                  <p>1. You will receive {config?.questionCount} questions.</p>
-                  <p>2. Each question has a time limit of 3 minutes.</p>
-                  <p>3. You cannot return to previous questions.</p>
-                  <p>4. Select only one answer per question.</p>
-                  <p>5. Your final score will be shown after completion.</p>
+                  <p className="flex items-start">
+                    <span className="inline-flex items-center justify-center bg-[#41b0f8] text-white rounded-full w-6 h-6 mr-3 flex-shrink-0 text-sm">1</span>
+                    You will receive {config?.questionCount} questions.
+                  </p>
+                  <p className="flex items-start">
+                    <span className="inline-flex items-center justify-center bg-[#41b0f8] text-white rounded-full w-6 h-6 mr-3 flex-shrink-0 text-sm">2</span>
+                    Each question has a time limit of 3 minutes.
+                  </p>
+                  <p className="flex items-start">
+                    <span className="inline-flex items-center justify-center bg-[#41b0f8] text-white rounded-full w-6 h-6 mr-3 flex-shrink-0 text-sm">3</span>
+                    You cannot return to previous questions.
+                  </p>
+                  <p className="flex items-start">
+                    <span className="inline-flex items-center justify-center bg-[#41b0f8] text-white rounded-full w-6 h-6 mr-3 flex-shrink-0 text-sm">4</span>
+                    Select only one answer per question.
+                  </p>
+                  <p className="flex items-start">
+                    <span className="inline-flex items-center justify-center bg-[#41b0f8] text-white rounded-full w-6 h-6 mr-3 flex-shrink-0 text-sm">5</span>
+                    Your final score will be shown after completion.
+                  </p>
                 </div>
                 
                 <div className="mt-8 flex items-center justify-between">
@@ -328,53 +357,59 @@ function AptitudeTest({ onBack, selectedCategory }) {
                     <input
                       type="checkbox"
                       id="instructionsCheckbox"
-                      className="mr-2"
+                      className="mr-2 h-4 w-4 text-[#024aad] focus:ring-[#41b0f8] border-gray-300 rounded"
                       onChange={(e) => setCanProceed(e.target.checked)}
                     />
                     <label htmlFor="instructionsCheckbox" className="text-gray-700">
                       I have read and understood the instructions
                     </label>
                   </div>
-                  <button
+                  <motion.button
                     onClick={startTest}
                     disabled={!canProceed}
-                    className={`px-6 py-2 rounded-lg font-medium ${
+                    whileHover={canProceed ? { scale: 1.05 } : {}}
+                    whileTap={canProceed ? { scale: 0.95 } : {}}
+                    className={`px-6 py-2 rounded-lg font-medium transition-all duration-200 ${
                       canProceed
-                        ? 'bg-[#024aad] text-white hover:bg-[#41b0f8]'
+                        ? 'bg-[#024aad] text-white hover:bg-[#41b0f8] shadow-md'
                         : 'bg-gray-200 text-gray-500 cursor-not-allowed'
                     }`}
                   >
                     Start Test
-                  </button>
+                  </motion.button>
                 </div>
-              </div>
+              </motion.div>
             )}
 
             {/* Test Questions */}
             {testStarted && !showScore && !isLoading && (
-              <div className="bg-white p-8 rounded-xl shadow-lg">
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white p-8 rounded-xl shadow-lg"
+              >
                 <div className="flex justify-between items-center mb-8">
                   <h3 className="text-xl font-semibold text-[#024aad]">
-                    Question {currentQuestion + 1} of {config?.questionCount}
+                    Question {currentQuestion + 1} of {questions.length}
                   </h3>
                   {questions.length > 0 && (
-                    <Countdown
-                      date={countdownTime}
-                      onComplete={handleTimerComplete}
-                      renderer={({ minutes, seconds }) => (
-                        <div className="flex items-center">
-                          <Clock className="text-[#41b0f8] mr-2" />
-                          <span className="font-mono">
+                    <div className="bg-[#f8fafc] px-4 py-2 rounded-lg border border-[#e1e7ef] flex items-center">
+                      <Clock className="text-[#41b0f8] mr-2 h-5 w-5" />
+                      <Countdown
+                        date={countdownTime}
+                        onComplete={handleTimerComplete}
+                        renderer={({ minutes, seconds }) => (
+                          <span className="font-mono font-medium">
                             {minutes}:{seconds.toString().padStart(2, '0')}
                           </span>
-                        </div>
-                      )}
-                    />
+                        )}
+                      />
+                    </div>
                   )}
                 </div>
 
                 {renderQuestion()}
-              </div>
+              </motion.div>
             )}
 
             {/* Score Screen */}
@@ -391,57 +426,68 @@ function AptitudeTest({ onBack, selectedCategory }) {
 --------------------------------------------------------------------*/
 function HireVisionHome({ onSelectCategory }) {
   return (
-    <div className="flex min-h-screen bg-gray-100">
-      {/* Left Sidebar */}
-      <aside className="w-64 bg-white shadow-md p-4">
-        <nav className="space-y-2">
-          <p className="text-sm font-semibold text-gray-500 px-2 uppercase">Categories</p>
-          <ul className="space-y-1">
-            {categories.map((category) => (
-              <li key={category.id}>
-                <button
-                  onClick={() => onSelectCategory(category.id)}
-                  className="w-full text-left block px-3 py-2 rounded hover:bg-gray-100 text-gray-700"
-                >
-                  {category.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-      </aside>
-
-      {/* Main Content */}
-      <main className="flex-1 p-6">
-        {/* Welcome Section */}
-        <div className="bg-white p-4 rounded-md shadow-sm mb-6">
-          <h2 className="text-xl font-bold text-gray-800">Welcome to HireVision!</h2>
-          <p className="text-gray-600 mt-1">
-            Aptitude questions and answers for your placement interviews and competitive exams!
+    <div className="min-h-screen bg-gray-50 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header Section */}
+        <div className="text-center mb-12">
+          <h1 className="text-4xl font-bold text-[#024aad] mb-4">Welcome to HireVision</h1>
+          <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+            Aptitude questions and answers for your placement interviews and competitive exams
           </p>
         </div>
 
-        {/* Category Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories
-            .filter(category => category.displayOnHome)
-            .map(category => (
-              <div
-                key={category.id}
-                onClick={() => onSelectCategory(category.id)}
-                className="bg-white rounded-md shadow-sm p-4 cursor-pointer hover:shadow-md transition"
-              >
-                <h3 className="text-lg font-bold text-[#024aad] mb-2">{category.name}</h3>
-                <p className="text-sm text-gray-600">{category.description}</p>
+        {/* Category Cards - 2 per row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
+          {categories.map(category => (
+            <motion.div
+              key={category.id}
+              whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
+              transition={{ duration: 0.2 }}
+              onClick={() => onSelectCategory(category.id)}
+              className="bg-white rounded-xl shadow-md p-6 cursor-pointer border border-gray-100 hover:border-[#41b0f8] transition-all duration-200"
+            >
+              <h3 className="text-xl font-bold text-[#024aad] mb-3">{category.name}</h3>
+              <p className="text-gray-600 mb-4">{category.description || 'Test your skills in this category.'}</p>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-gray-500">
+                  {category.questionCount || 15} questions
+                </span>
+                <span className="inline-flex items-center justify-center bg-[#e6f0ff] text-[#024aad] px-3 py-1 rounded-full text-sm font-medium">
+                  {category.difficulty || 'Moderate'}
+                </span>
               </div>
-            ))}
+            </motion.div>
+          ))}
         </div>
 
-        {/* Footer */}
-        <div className="mt-8 text-center text-sm text-gray-500">
-          © HireVision™ Technologies
-        </div>
-      </main>
+        {/* Featured Categories Row (Optional) */}
+        {categories.filter(category => category.featured).length > 0 && (
+          <div className="mt-16">
+            <h2 className="text-2xl font-bold text-[#024aad] mb-6 text-center">Featured Categories</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {categories
+                .filter(category => category.featured)
+                .map(category => (
+                  <motion.div
+                    key={category.id}
+                    whileHover={{ y: -5, boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)' }}
+                    transition={{ duration: 0.2 }}
+                    onClick={() => onSelectCategory(category.id)}
+                    className="bg-gradient-to-br from-[#024aad] to-[#41b0f8] text-white rounded-xl shadow-md p-6 cursor-pointer transition-all duration-200"
+                  >
+                    <h3 className="text-xl font-bold mb-3">{category.name}</h3>
+                    <p className="text-white text-opacity-90 mb-4">{category.description || 'Test your skills in this category.'}</p>
+                    <div className="flex justify-end">
+                      <span className="inline-flex items-center justify-center bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-medium">
+                        Start Test
+                      </span>
+                    </div>
+                  </motion.div>
+                ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

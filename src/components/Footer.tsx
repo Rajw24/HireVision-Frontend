@@ -1,6 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Brain, Twitter, Linkedin, Github } from 'lucide-react';
+import About from '../pages/AboutPage';
+import Careers from '../pages/CareersPage';
+import Contact from '../pages/ContactPage';
 
 function Footer() {
   return (
@@ -10,8 +13,8 @@ function Footer() {
           <div>
             <div className="flex items-center">
               <Link to="/" className="flex items-center">
-                          <img src="./src/assests/logo.png" alt="HireVision.AI" className="h-12" />
-                        </Link>
+                <img src="./src/assets/logo.png" alt="HireVision.AI" className="h-12" />
+              </Link>
               <span className="ml-2 text-xl font-bold">HireVision.AI</span>
             </div>
             <p className="mt-4 text-gray-400">
