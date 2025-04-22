@@ -650,7 +650,7 @@ export default function ResumeBuilder() {
                       <div key={proj.id} className="mb-6">
                         <h3 className="font-semibold text-lg">{proj.name}</h3>
                         <p className="text-gray-700 mb-1">{proj.description}</p>
-                        <p className="text-gray-600">Technologies: {proj.technologies}</p>
+                        <p className="text-gray-600">{proj.technologies}</p>
                       </div>
                     ))}
                   </div>
@@ -673,7 +673,7 @@ export default function ResumeBuilder() {
                     {resumeData.certifications.map((cert) => (
                       <div key={cert.id} className="mb-4">
                         <h3 className="font-semibold text-lg">{cert.name}</h3>
-                        <p className="text-gray-600">{cert.issuingOrganization} • {cert.date}</p>
+                        <p className="text-gray-600">{cert.issuingOrganization}{cert.date}</p>
                       </div>
                     ))}
                   </div>
