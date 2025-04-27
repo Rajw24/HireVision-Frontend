@@ -1,36 +1,34 @@
-import React, { useState, useEffect, Fragment, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Clock, CheckCircle2, AlertCircle } from 'lucide-react';
 import Countdown from 'react-countdown';
 import axios from 'axios';
-import { Question, ExamConfig, UserAnswer, ExamResponse, ExamResult, ExamError } from '../types/aptitude';
+import { Question, UserAnswer, ExamResponse, ExamResult } from '../types/aptitude';
 import TokenService from '../services/TokenService';
 import { categories } from '../data/categories';
-
-// Add API base URL
-const API_BASE_URL = 'http://localhost:8000';
 
 /* ------------------------------------------------------------------
    APTITUDE TEST COMPONENT (Second Page)
 --------------------------------------------------------------------*/
-function AptitudeTest({ onBack, selectedCategory }) {
-  const [config] = useState({ difficulty: 'moderate', questionCount: 15 }); // Set default config
+interface AptitudeTestProps {
+  onBack: () => void;
+  selectedCategory: string;
+}
+
+function AptitudeTest({ onBack, selectedCategory }: AptitudeTestProps) {
+  const [config] = useState({ difficulty: 'moderate', questionCount: 15 });
   const [showInstructions, setShowInstructions] = useState(false);
   const [canProceed, setCanProceed] = useState(false);
   const [testStarted, setTestStarted] = useState(false);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [showScore, setShowScore] = useState(false);
-  // Score is not dynamically calculated in this sample; you can enhance as needed
-  const [score] = useState(0);
-
-  // New state variables
   const [questions, setQuestions] = useState<Question[]>([]);
   const [examId, setExamId] = useState<number | null>(null);
   const [userAnswers, setUserAnswers] = useState<Map<number, string>>(new Map());
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<ExamResult | null>(null);
-  const [countdownTime, setCountdownTime] = useState(Date.now() + 45000);
+  const [countdownTime, setCountdownTime] = useState(Date.now() + 90000);
 
   useEffect(() => {
     if (showInstructions) {
@@ -40,6 +38,15 @@ function AptitudeTest({ onBack, selectedCategory }) {
       return () => clearTimeout(timer);
     }
   }, [showInstructions]);
+
+  
+  useEffect(() => {
+    // We only want to set the initial countdown when the test first starts
+    if (testStarted && questions.length > 0 && countdownTime === Date.now()) {
+      setCountdownTime(Date.now() + 90000);
+    }
+  }, [testStarted, questions, countdownTime]);
+  
 
   const handleStartTest = () => {
     setShowInstructions(true);
@@ -53,7 +60,7 @@ function AptitudeTest({ onBack, selectedCategory }) {
     try {
       const token = TokenService.getAccessToken(); // Assuming token is stored in localStorage
       const response = await axios.post<ExamResponse>(
-        `${API_BASE_URL}/aptitude/start-exam/`,
+        `http://localhost:8000/aptitude/start-exam/`,
         {
           category_id: selectedCategory // Add category ID to request body
         },
@@ -67,7 +74,7 @@ function AptitudeTest({ onBack, selectedCategory }) {
       setExamId(response.data.exam_id);
       setQuestions(response.data.questions);
       setTestStarted(true);
-      setCountdownTime(Date.now() + 45000); // Set timer only after questions are loaded
+      setCountdownTime(Date.now() + 90000); // Set timer only after questions are loaded
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load questions');
     } finally {
@@ -80,14 +87,6 @@ function AptitudeTest({ onBack, selectedCategory }) {
     setUserAnswers(prev => new Map(prev).set(questionId, answer));
   }, []); // Remove currentQuestion from dependencies
 
-  // Add handle next question
-  const handleNextQuestion = useCallback(() => {
-    if (currentQuestion < questions.length - 1) {
-      setCurrentQuestion(prev => prev + 1);
-      setCountdownTime(Date.now() + 45000); // Reset timer when moving to next question
-    }
-  }, [currentQuestion, questions.length]);
-
   // Submit answers
   const submitAnswers = useCallback(async () => {
     if (!examId) return;
@@ -99,11 +98,11 @@ function AptitudeTest({ onBack, selectedCategory }) {
       const token = TokenService.getAccessToken();
       const answers: UserAnswer[] = Array.from(userAnswers.entries()).map(([question_id, answer]) => ({
         question_id,
-        answer,
+        answer: answer || '',  // Convert null to empty string for TypeScript
       }));
 
       const response = await axios.post<ExamResult>(
-        `${API_BASE_URL}/aptitude/submit-exam/`,
+        `http://localhost:8000/aptitude/submit-exam/`,
         {
           exam_id: examId,
           answers,
@@ -128,16 +127,28 @@ function AptitudeTest({ onBack, selectedCategory }) {
   // Add timer completion handler
   const handleTimerComplete = useCallback(() => {
     if (currentQuestion < questions.length - 1) {
-      // If current question has no answer, set it to null before moving to next
+      // If current question has no answer, set it to empty string before moving to next
       if (!userAnswers.has(questions[currentQuestion].id)) {
-        setUserAnswers(prev => new Map(prev).set(questions[currentQuestion].id, null));
+        setUserAnswers(prev => new Map(prev).set(questions[currentQuestion].id, ''));
       }
-      handleNextQuestion();
+      // Move to next question
+      setCurrentQuestion(prev => prev + 1);
+      // Reset the countdown time immediately here
+      setCountdownTime(Date.now() + 90000);
     } else {
       // On last question, submit the test
       submitAnswers();
     }
-  }, [currentQuestion, questions, userAnswers, handleNextQuestion, submitAnswers]);
+  }, [currentQuestion, questions, userAnswers, submitAnswers]);
+
+  // Add handle next question
+  const handleNextQuestion = useCallback(() => {
+    if (currentQuestion < questions.length - 1) {
+      setCurrentQuestion(prev => prev + 1);
+      // Reset timer when manually moving to next question
+      setCountdownTime(Date.now() + 90000);
+    }
+  }, [currentQuestion, questions.length]);
 
   // Display results
   const displayResults = useCallback(() => {
@@ -424,7 +435,11 @@ function AptitudeTest({ onBack, selectedCategory }) {
 /* ------------------------------------------------------------------
    HIREVISION HOME COMPONENT (First Page)
 --------------------------------------------------------------------*/
-function HireVisionHome({ onSelectCategory }) {
+interface HireVisionHomeProps {
+  onSelectCategory: (categoryId: string) => void;
+}
+
+function HireVisionHome({ onSelectCategory }: HireVisionHomeProps) {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -447,13 +462,11 @@ function HireVisionHome({ onSelectCategory }) {
               className="bg-white rounded-xl shadow-md p-6 cursor-pointer border border-gray-100 hover:border-[#41b0f8] transition-all duration-200"
             >
               <h3 className="text-xl font-bold text-[#024aad] mb-3">{category.name}</h3>
-              <p className="text-gray-600 mb-4">{category.description || 'Test your skills in this category.'}</p>
+              <p className="text-gray-600 mb-4">{category.description}</p>
               <div className="flex justify-between items-center">
-                <span className="text-sm text-gray-500">
-                  {category.questionCount || 15} questions
-                </span>
+                <span className="text-sm text-gray-500">15 questions</span>
                 <span className="inline-flex items-center justify-center bg-[#e6f0ff] text-[#024aad] px-3 py-1 rounded-full text-sm font-medium">
-                  {category.difficulty || 'Moderate'}
+                  Moderate
                 </span>
               </div>
             </motion.div>
@@ -461,12 +474,12 @@ function HireVisionHome({ onSelectCategory }) {
         </div>
 
         {/* Featured Categories Row (Optional) */}
-        {categories.filter(category => category.featured).length > 0 && (
+        {categories.filter(category => category.displayOnHome).length > 0 && (
           <div className="mt-16">
             <h2 className="text-2xl font-bold text-[#024aad] mb-6 text-center">Featured Categories</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
               {categories
-                .filter(category => category.featured)
+                .filter(category => category.displayOnHome)
                 .map(category => (
                   <motion.div
                     key={category.id}
@@ -476,7 +489,7 @@ function HireVisionHome({ onSelectCategory }) {
                     className="bg-gradient-to-br from-[#024aad] to-[#41b0f8] text-white rounded-xl shadow-md p-6 cursor-pointer transition-all duration-200"
                   >
                     <h3 className="text-xl font-bold mb-3">{category.name}</h3>
-                    <p className="text-white text-opacity-90 mb-4">{category.description || 'Test your skills in this category.'}</p>
+                    <p className="text-white text-opacity-90 mb-4">{category.description}</p>
                     <div className="flex justify-end">
                       <span className="inline-flex items-center justify-center bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-medium">
                         Start Test
@@ -496,11 +509,11 @@ function HireVisionHome({ onSelectCategory }) {
    MAIN APP COMPONENT
 --------------------------------------------------------------------*/
 export default function App() {
-  const [selectedCategory, setSelectedCategory] = useState(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   // If no category is selected, show the HireVision homepage
   if (!selectedCategory) {
-    return <HireVisionHome onSelectCategory={setSelectedCategory} />;
+    return <HireVisionHome onSelectCategory={(categoryId: string) => setSelectedCategory(categoryId)} />;
   }
 
   // If a category is selected, show the AptitudeTest component with a Back button

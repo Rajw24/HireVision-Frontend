@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@headlessui/react": "^1.7.18",
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/face_detection": "^0.4.1646425229",
     "@react-pdf/renderer": "^3.4.0",
     "axios": "^1.8.4",
     "chart.js": "^4.4.8",

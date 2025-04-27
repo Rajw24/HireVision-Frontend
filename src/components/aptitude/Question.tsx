@@ -16,6 +16,11 @@ interface QuestionProps {
   isLastQuestion: boolean;
 }
 
+interface TimerRendererProps {
+  seconds: number;
+  completed: boolean;
+}
+
 const Question: React.FC<QuestionProps> = ({
   question,
   currentQuestionIndex,
@@ -28,16 +33,16 @@ const Question: React.FC<QuestionProps> = ({
   isLastQuestion
 }) => {
   const [countdownTime, setCountdownTime] = useState(Date.now() + timeLimit);
-  const [timeLeft, setTimeLeft] = useState(timeLimit);
   const [animateTimeWarning, setAnimateTimeWarning] = useState(false);
 
   // Reset timer when question changes
   useEffect(() => {
     setCountdownTime(Date.now() + timeLimit);
+    setAnimateTimeWarning(false);
   }, [question.id, timeLimit]);
 
   // Timer component renderer
-  const renderTimer = ({ seconds, completed }) => {
+  const renderTimer = ({ seconds, completed }: TimerRendererProps) => {
     const timePercentage = (seconds / (timeLimit / 1000)) * 100;
     let timerColor = 'bg-green-500';
     
@@ -49,9 +54,6 @@ const Question: React.FC<QuestionProps> = ({
         setAnimateTimeWarning(true);
       }
     }
-
-    // Update timeLeft for progress bar
-    setTimeLeft(seconds * 1000);
 
     if (completed) {
       return <div className="font-mono text-red-500">Time's up!</div>;
